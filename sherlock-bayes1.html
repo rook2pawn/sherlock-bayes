@@ -1,16 +1,37 @@
 <html>
 <head><title>Sherlock Bayes, logical detective: a murder mystery game</title></head>
 <body>
-<div id="sherlockBayes150129" style="height:640px; font-family:'Times New Roman'; background-color:green; font-size:16px; line-height:17px">
+<div id="sherlockBayes150129" style="height:640px; width:635px; font-family:'Times New Roman'; background-color:green; font-size:16px; line-height:17px">
 </div>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script type="text/javaScript">
 (function () {
+/*
+features to implement:
+resources that limit stuff
+different accuracy depending on category
+categories:
+alibi
+motive
+forensic
+psychological evaluation
+witnesses
+random hot tips - cheap cost
+great detective insight - higher accuracy
+different starting priors
+cheaper cost to fill out row/column
+cheaper cost for random
+difficulty levels
+pictures,reactions, tutorial, ui, etc.
+*/
+
 
 
 var DIV_CONTAINER_ID = "sherlockBayes150129";
 var postBody=document.getElementById(DIV_CONTAINER_ID);
 
+var NUM_CATEGORIES=5
+var P_FALSELY=1/3
 
 
 
@@ -27,7 +48,6 @@ function chooseRandom(pArray){ // chooses a random element given a probability d
 }
 
 function makeEvidenceChart(priors,n){
-	var innocentP=1/3
 	var evidenceChart=[]
 	var culprit=chooseRandom(priors)
 	for (var suspect=0;suspect<priors.length;suspect++) {
@@ -39,7 +59,7 @@ function makeEvidenceChart(priors,n){
 		} else {
 			var falseCount=0
 			for (var i=0;i<n;i++){
-				if (Math.random()<innocentP){
+				if (Math.random()<P_FALSELY){
 					suspectArray.push(true)
 				} else {
 					suspectArray.push(false)
@@ -63,47 +83,118 @@ function makeEvidenceChart(priors,n){
 	}
 	return evidenceChart
 }
-chart=makeEvidenceChart([0.25,0.25,0.25,0.25],5)
-console.log(chart)
-console.log("query test", chart.query(3,1,0.5))
+var pDist=[0.50,0.15,0.25,0.10]
+var chart=makeEvidenceChart(pDist,NUM_CATEGORIES)
+//console.log(chart)
+//console.log("query test", chart.query(3,1,0.5))
 
-for (var i=0;i<chart.length;i++) {
-	for (var j=0;j<chart[0].length;j++) {
-		var div=document.createElement("DIV")
-		div.style.backgroundColor="rgb(230,230,100)"
-		div.style.position="absolute"
-		div.style.height=19
-		div.style.width=34
-		div.style.top=j*20+15
-		div.style.left=i*35+15
-		div.style.textAlign="center"
-		div.innerHTML=chart[i][j]
-		postBody.appendChild(div)
+function makeChartUI(chart){
+	var chartUI=[]
+	for (var i=0;i<chart.length;i++) {
+		var column=[]
+		for (var j=0;j<chart[0].length;j++) {
+			var div=document.createElement("DIV")
+			div.style.backgroundColor="rgb(250,250,100)"
+			div.style.position="absolute"
+			div.style.height=39
+			div.style.width=89
+			div.style.top=j*(parseInt(div.style.height)+1)+150
+			div.style.left=i*(parseInt(div.style.width)+1)+15
+			div.style.textAlign="center"
+			//div.innerHTML=chart[i][j]
+			div.prevQ=[] // new thing. keeps track of previous queries.
+			div.suspect=i
+			div.category=j
+			div.onclick=function(){
+				processClick(this.suspect,this.category,chart,chartUI,pDist)
+			}
+			postBody.appendChild(div)
+			column.push(div)
+		}
+		chartUI.push(column)
 	}
+	return chartUI
 }
 
-function pFalseSuspicion(n,p,q){ // the probability of having "true" even if innocent. for now, n=5,p=1/3
-	if (pFalseSuspicion.prevQ===undefined){
-		pFalseSuspicion.prevQ={}
-		console.log("once only")
+var chartUI=makeChartUI(chart)
+
+function processClick(suspect,category,chart,chartUI,pDist){
+	console.log("before",pDist)
+	var accuracy=Math.random()*0.5+0.5 //maybe make accuracy based on category
+	var result=chart.query(suspect,category,accuracy)
+	var q={result:result, suspect:suspect, category:category, accuracy:accuracy}
+	var post=bayesTheorem(q,pDist,chartUI)
+	for (var i=0;i<post.length;i++){
+		pDist[i]=post[i]
 	}
-	var key=q.suspect+"-"+q.category
-	var prob
-	if (pFalseSuspicion.prevQ[key]===undefined){
-		prob=p-Math.pow(p,n)/n
-		console.log("first query here, return ",prob)
-	} else {
-		prob=pFalseSuspicion.prevQ[key]
-		var likelihood=q.accuracy
-		if (!q.result) {likelihood=1-likelihood}
-		prob=q.accuracy*prob/(prob*q.accuracy+(1-prob)*(1-q.accuracy))
-		console.log("repeated query", prob)
+	pBars.update(pDist)
+	//var pTrue=accuracy
+	//if (!result) {pTrue=1-pTrue}
+	chartUI[suspect][category].innerHTML=result+"<br>"+Math.round(accuracy*100)+"%"
+	console.log("after",pDist)
+}
+
+var answersButton=document.createElement("BUTTON")
+answersButton.style.position="absolute"
+answersButton.style.top=300
+answersButton.style.left=500
+answersButton.innerHTML="show answers"
+answersButton.onclick=function(){
+	for (var i=0;i<chartUI.length;i++){
+		for (var j=0;j<chartUI[0].length;j++){
+			chartUI[i][j].innerHTML=chart[i][j]
+		}
+
 	}
-	//pFalseSuspicion.prevQ[key]=prob
+}
+postBody.appendChild(answersButton)
+
+/*/statistics testing
+function getMax(array){
+	var max=array[0]
+	var maxI=0
+	for (var i=0;i<array.length;i++){
+		if (array[i]>max) {
+			max=array[i]
+			maxI=i
+		}
+	}
+	return maxI
+}
+var total=10000
+var right=0
+var pSum=0
+for (var i=0;i<total;i++){
+	while (pDist[getMax(pDist)]<0.85) {
+		var x=Math.floor(Math.random()*4)
+		var y=Math.floor(Math.random()*5)
+		processClick(x,y,chart,chartUI,pDist)
+	}
+	var accuse=getMax(pDist)
+	var pVal=pDist[getMax(pDist)]
+	if (accuse===chart.culprit){right++}
+	pSum+=pVal
+	pDist=[0.25,0.25,0.25,0.25]
+	chart=makeEvidenceChart(pDist,NUM_CATEGORIES)
+	chartUI=makeChartUI(chart)
+
+}
+console.log("theory:",pSum/total," experiment:",right/total)
+//*/
+
+
+function pFalseSuspicion(q,chartUI){ // the probability of having "true" even if innocent, takes previous q into account
+	var prob=P_FALSELY-Math.pow(P_FALSELY,NUM_CATEGORIES)/NUM_CATEGORIES
+	var qList=chartUI[q.suspect][q.category].prevQ
+	for (var i=0;i<qList.length;i++){
+		var likelihood=qList[i].accuracy
+		if (!qList[i].result) {likelihood=1-likelihood}
+		prob=prob*likelihood/(prob*likelihood+(1-prob)*(1-likelihood))
+	}
 	return prob
 }
 	
-	
+/*	
 var falseSusp=0 //testing pFalseSuspicion(n,p)
 for (var i=0;i<1000;i++){
 	var testChart=makeEvidenceChart([1,0,0,0],5)
@@ -112,15 +203,15 @@ for (var i=0;i<1000;i++){
 		//console.log(testChart,falseSusp)
 	}
 }
-console.log("exp:", falseSusp/1000, "theory: ",pFalseSuspicion(5,1/3,{result:true,suspect:1,category:0,accuracy:1}))
+console.log("exp:", falseSusp/1000, "theory: ",pFalseSuspicion({result:true,suspect:1,category:0,accuracy:1},chartUI))
+*/
 
-
-function likelihood(q,suspect) { //P(qResult for qSuspect|suspect)
+function likelihood(q,suspect,chartUI) { //P(qResult for qSuspect|suspect)
 	if (suspect===q.suspect) {
 		if (q.result){return q.accuracy}
 		else {return 1-q.accuracy}
 	} else {
-		var pFalsely=pFalseSuspicion(5,1/3,q) // depends on things
+		var pFalsely=pFalseSuspicion(q,chartUI)
 		var pTrue=pFalsely*q.accuracy+(1-pFalsely)*(1-q.accuracy)
 		if (q.result){return pTrue}
 		else {return 1-pTrue}
@@ -129,34 +220,103 @@ function likelihood(q,suspect) { //P(qResult for qSuspect|suspect)
 
 //console.log(likelihood(true,1,0.9,0))
 
-function denominator(q,priors){ //P(result)
+function denominator(q,priors,chartUI){ //P(result)
 	var prob=0
 	for (var i=0;i<priors.length;i++){
-		prob+=priors[i]*likelihood(q,i)
+		prob+=priors[i]*likelihood(q,i,chartUI)
 	}
 	return prob
 }
 
-function bayesTheorem(q,priors){
+function bayesTheorem(q,priors,chartUI){
 	var posteriors=[]
+	var denom=denominator(q,priors,chartUI)
 	for (var i=0;i<priors.length;i++){
-		var prob=priors[i]*likelihood(q,i)/denominator(q,priors)
+		var prob=priors[i]*likelihood(q,i,chartUI)/denom
 		posteriors.push(prob)
 	}
+	chartUI[q.suspect][q.category].prevQ.push(q)
 	return posteriors
 }
-
-var p1=bayesTheorem({result:true,suspect:1,category:0,accuracy:1},[0.25,0.25,0.25,0.25])
+//q={result:,suspect, category, accuracy}
+//bayes theorem mechanics test
+/*
+var p1=bayesTheorem({result:true,suspect:1,category:1,accuracy:0.8},[0.25,0.25,0.25,0.25],chartUI)
 console.log(p1)
-var p2=bayesTheorem({result:true,suspect:1,category:0,accuracy:1},p1)
-console.log(p2)
-var p3=bayesTheorem({result:true,suspect:1,category:0,accuracy:1},p2)
-console.log(p3)
-var p4=bayesTheorem({result:true,suspect:1,category:0,accuracy:1},p3)
-console.log(p4)
+p1=bayesTheorem({result:true,suspect:1,category:2,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:3,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:0,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:1,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:2,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:3,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:0,accuracy:0.8},p1,chartUI)
+console.log(p1)
+p1=bayesTheorem({result:true,suspect:1,category:1,accuracy:0.8},p1,chartUI)
+console.log(p1)
+
+console.log(chartUI)
+*/
 
 
-console.log(pFalseSuspicion.prevQ)
+function makePBars(pDist,width){ //array of array of divs
+	var pBars=[]
+	pBars.spacing=width
+	for (var i=0;i<pDist.length;i++){
+		var div=document.createElement("DIV")
+		div.style.backgroundColor="rgb(120,120,250)"
+		div.style.position="absolute"
+		div.style.height=Math.round(pDist[i]*100)
+		div.style.width=10
+		div.style.top=140-parseInt(div.style.height)
+		div.style.left=i*pBars.spacing+20
+		div.style.borderStyle="solid"
+		div.style.borderWidth="1px"
+		postBody.appendChild(div)
+		pBars.push([div])
+	}
+	pBars.update=function(newDist){
+		for (var i=0;i<pBars.length;i++){
+			var oldBar=$(pBars[i][0]).clone()[0]
+			postBody.appendChild(oldBar)
+			oldBar.style.backgroundColor="rgba(210,210,250,0.7)"
+			pBars[i].splice(1,0,oldBar)
+			if (pBars[i].length>10){
+				var toDelete=pBars[i].pop()
+				$(toDelete).remove()
+			}
+			for (var j=1;j<pBars[i].length;j++){
+				var newBGColor="rgba(210,210,250,"+(0.8-j/10)+")"
+				console.log(newBGColor)
+				$(pBars[i][j]).animate({
+					left:"+="+(12-j),//i*pBars.spacing+20+j*11,
+					opacity:"-=0.10",
+					width:"-=1"
+				})
+			}
+			//console.log(pBars[i])
+			//oldBar.style.left=i*parseInt(oldBar.style.width)+40
+			$(pBars[i][0]).animate({
+				height:Math.round(newDist[i]*100),
+				top:140-Math.round(newDist[i]*100)
+			},"slow")
+		}
+	}
+	return pBars
+}
+
+var pBars=makePBars(pDist,parseInt(chartUI[0][0].style.width))
+
+
+
+
+
+
 
 
 
