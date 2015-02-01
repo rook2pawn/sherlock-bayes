@@ -1,7 +1,7 @@
 <html>
-<head><title>Sherlock Bayes, logical detective: a murder mystery game</title></head>
+<head><title>Sherlock Bayes, logical detective. A murder mystery game</title></head>
 <body>
-<div id="sherlockBayes150129" style="height:640px; width:635px; font-family:'Times New Roman'; background-color:green; font-size:16px; line-height:17px">
+<div id="sherlockBayes150129" style="height:640px; width:635px; font-family:'Times New Roman'; background-color:Olive; font-size:16px; line-height:17px">
 </div>
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script type="text/javaScript">
@@ -83,12 +83,29 @@ function makeEvidenceChart(priors,n){
 	}
 	return evidenceChart
 }
-var pDist=[0.50,0.15,0.25,0.10]
+
+function generateDist(){
+	var randArray=[]
+	var sum=0
+	for (var i=0;i<4;i++){
+		var rand=Math.random()*0.8+0.2
+		randArray.push(rand)
+		sum+=rand
+	}
+	var partialSum=0
+	for (var i=0;i<randArray.length-1;i++){
+		randArray[i]/=sum
+		partialSum+=randArray[i]
+	}
+	randArray[randArray.length-1]=1-partialSum
+	return randArray
+}
+var pDist=generateDist()
 var chart=makeEvidenceChart(pDist,NUM_CATEGORIES)
 //console.log(chart)
 //console.log("query test", chart.query(3,1,0.5))
 
-function makeChartUI(chart){
+function makeChartUI(chart,x,y){
 	var chartUI=[]
 	for (var i=0;i<chart.length;i++) {
 		var column=[]
@@ -97,9 +114,9 @@ function makeChartUI(chart){
 			div.style.backgroundColor="rgb(250,250,100)"
 			div.style.position="absolute"
 			div.style.height=39
-			div.style.width=89
-			div.style.top=j*(parseInt(div.style.height)+1)+150
-			div.style.left=i*(parseInt(div.style.width)+1)+15
+			div.style.width=94
+			div.style.top=j*(parseInt(div.style.height)+1)+y
+			div.style.left=i*(parseInt(div.style.width)+1)+x
 			div.style.textAlign="center"
 			//div.innerHTML=chart[i][j]
 			div.prevQ=[] // new thing. keeps track of previous queries.
@@ -116,11 +133,42 @@ function makeChartUI(chart){
 	return chartUI
 }
 
-var chartUI=makeChartUI(chart)
+var chartUI=makeChartUI(chart,235,250)
 
 function processClick(suspect,category,chart,chartUI,pDist){
-	console.log("before",pDist)
-	var accuracy=Math.random()*0.5+0.5 //maybe make accuracy based on category
+	//console.log("before",pDist)
+	var cost=10
+	var acccuracy
+	//var accuracy=Math.random()*0.5+0.5 //maybe make accuracy based on category
+	switch (category) {
+		case 0:
+			accuracy=0.85+0.15*2*(Math.random()-0.5)
+			cost+=5
+			//forensics: high accuracy, high cost
+			break
+		case 1:
+			accuracy=0.75+0.15*2*(Math.random()-0.5)
+			cost+=Math.round((Math.random()-0.5)*5)
+			//motive: variable cost
+			break
+		case 2:
+			accuracy=0.75+0.15*2*(Math.random()-0.5)
+			cost+=0
+			//alibi: standard cost and accuracy
+			break
+		case 3:
+			accuracy=0.65+0.15*2*(Math.random()-0.5)
+			cost-=5
+			//character witnesses: low accuracy, low cost
+			break
+		case 4:
+			accuracy=0.75+0.25*2*(Math.random()-0.5)
+			cost+=0
+			//eyewitnesses: highly variable accuracy
+			break
+	}
+	//accuracy=1
+	//console.log(cost)
 	var result=chart.query(suspect,category,accuracy)
 	var q={result:result, suspect:suspect, category:category, accuracy:accuracy}
 	var post=bayesTheorem(q,pDist,chartUI)
@@ -128,10 +176,11 @@ function processClick(suspect,category,chart,chartUI,pDist){
 		pDist[i]=post[i]
 	}
 	pBars.update(pDist)
+	pDistReport.update(pDist)
 	//var pTrue=accuracy
 	//if (!result) {pTrue=1-pTrue}
 	chartUI[suspect][category].innerHTML=result+"<br>"+Math.round(accuracy*100)+"%"
-	console.log("after",pDist)
+	//console.log("after",pDist)
 }
 
 var answersButton=document.createElement("BUTTON")
@@ -147,7 +196,7 @@ answersButton.onclick=function(){
 
 	}
 }
-postBody.appendChild(answersButton)
+//postBody.appendChild(answersButton)
 
 /*/statistics testing
 function getMax(array){
@@ -165,7 +214,7 @@ var total=10000
 var right=0
 var pSum=0
 for (var i=0;i<total;i++){
-	while (pDist[getMax(pDist)]<0.85) {
+	while (pDist[getMax(pDist)]<0.50) {
 		var x=Math.floor(Math.random()*4)
 		var y=Math.floor(Math.random()*5)
 		processClick(x,y,chart,chartUI,pDist)
@@ -174,7 +223,7 @@ for (var i=0;i<total;i++){
 	var pVal=pDist[getMax(pDist)]
 	if (accuse===chart.culprit){right++}
 	pSum+=pVal
-	pDist=[0.25,0.25,0.25,0.25]
+	pDist=generateDist()
 	chart=makeEvidenceChart(pDist,NUM_CATEGORIES)
 	chartUI=makeChartUI(chart)
 
@@ -264,7 +313,7 @@ console.log(chartUI)
 */
 
 
-function makePBars(pDist,width){ //array of array of divs
+function makePBars(pDist,width,x,y){ //array of array of divs
 	var pBars=[]
 	pBars.spacing=width
 	for (var i=0;i<pDist.length;i++){
@@ -273,8 +322,9 @@ function makePBars(pDist,width){ //array of array of divs
 		div.style.position="absolute"
 		div.style.height=Math.round(pDist[i]*100)
 		div.style.width=10
-		div.style.top=140-parseInt(div.style.height)
-		div.style.left=i*pBars.spacing+20
+		div.style.bottomCoord=y // new thing, indicates the bottom of the bar
+		div.style.top=div.style.bottomCoord-parseInt(div.style.height)
+		div.style.left=i*pBars.spacing+x
 		div.style.borderStyle="solid"
 		div.style.borderWidth="1px"
 		postBody.appendChild(div)
@@ -292,30 +342,90 @@ function makePBars(pDist,width){ //array of array of divs
 			}
 			for (var j=1;j<pBars[i].length;j++){
 				var newBGColor="rgba(210,210,250,"+(0.8-j/10)+")"
-				console.log(newBGColor)
+				//console.log(newBGColor)
 				$(pBars[i][j]).animate({
 					left:"+="+(12-j),//i*pBars.spacing+20+j*11,
-					opacity:"-=0.10",
+					opacity:"-=0.11",
 					width:"-=1"
 				})
 			}
 			//console.log(pBars[i])
 			//oldBar.style.left=i*parseInt(oldBar.style.width)+40
 			$(pBars[i][0]).animate({
-				height:Math.round(newDist[i]*100),
-				top:140-Math.round(newDist[i]*100)
+				top:pBars[i][0].style.bottomCoord-Math.round(newDist[i]*100),
+				height:Math.round(newDist[i]*100)
 			},"slow")
 		}
 	}
 	return pBars
 }
 
-var pBars=makePBars(pDist,parseInt(chartUI[0][0].style.width))
+var pBars=makePBars(pDist,parseInt(chartUI[0][0].style.width),258,140)
+
+function reportPDist(pDist,width,x,y){
+	pDistReport=[]
+	for (var i=0;i<pDist.length;i++){
+		var text=document.createElement("SPAN")
+		text.innerHTML=Math.round(pDist[i]*100)+"%"
+		text.style.position="absolute"
+		text.style.width=width
+		text.style.color="rgba(0,0,0,1)"
+		text.style.left=width*i+x
+		text.style.top=y
+		postBody.appendChild(text)
+		pDistReport.push([text])
+	}
+	pDistReport.update=function(pDist){
+		for (var i=0;i<pDist.length;i++){
+			if (pDistReport[i].length>=2){
+				var toDelete=pDistReport[i].pop()
+				$(toDelete).remove()
+			}
+			pDistReport[i].push($(pDistReport[i][0]).clone()[0])
+			postBody.appendChild(pDistReport[i][1])
+			//pDistReport[i][1].innerHTML="<="+pDistReport[i][1].innerHTML
+			$(pDistReport[i][1]).animate({
+				left:"+=40", 
+				opacity:"-=0.3",
+				fontSize:"-=4",
+				top:"+=1"
+			},"fast")//,function(){pDistReport[i][1].innerHTML="<-"+pDistReport[i][1].innerHTML})
+			pDistReport[i][0].innerHTML=Math.round(pDist[i]*100)+"%"
+			$(pDistReport[i][0]).animate({fontSize:"+=3"},"fast").animate({fontSize:"-=3"},"fast")
+		}
+	}
+	return pDistReport
+}
+
+var pDistReport=reportPDist(pDist,parseInt(chartUI[0][0].style.width),255,145)
 
 
+function makePortraits(n,width,x,y){
+	var portraits=[]
+	for (var i=0;i<n;i++){
+		var face=document.createElement("IMG")
+		face.src=i+".png"
+		face.style.position="absolute"
+		face.style.top=y
+		face.style.left=(i*parseInt(width)+x)
+		face.onclick=function(){accuse(this)}
+		postBody.appendChild(face)
+	}
+	return portraits
+}
 
+function accuse(portrait){
+	console.log(portrait.src)
+	answersButton.onclick()
+}
 
-
+var portraits=makePortraits(4,chartUI[0][0].style.width,250,185)
+var sherlockBayesPortrait=document.createElement("IMG")
+sherlockBayesPortrait.src="sherlockBayes180.png"
+sherlockBayesPortrait.style.position="absolute"
+sherlockBayesPortrait.style.top=200
+sherlockBayesPortrait.style.left=15
+postBody.appendChild(sherlockBayesPortrait)
 
 
 
