@@ -114,11 +114,13 @@ function makeChartUI(chart,x,y){
 			div.style.backgroundColor="khaki"//rgb(250,250,100)"
 			div.style.position="absolute"
 			div.style.height=54
-			div.style.width=109
+			div.style.width=99
 			div.style.top=j*(parseInt(div.style.height)+1)+y
 			div.style.left=i*(parseInt(div.style.width)+1)+x
+
 			div.style.textAlign="center"
-			//div.innerHTML=chart[i][j]
+			var category=["</br>Forensics", "</br>Motive", "</br>Alibi", "</br>Character", "</br>Eyewitnesses"]
+			div.innerHTML=category[j]
 			div.prevQ=[] // new thing. keeps track of previous queries.
 			div.suspect=i
 			div.category=j
@@ -182,7 +184,7 @@ function makeSpan(q,i,width,height) {
 	return text
 }
 
-var chartUI=makeChartUI(chart,200,250)
+var chartUI=makeChartUI(chart,240,250)
 
 function processClick(suspect,category,chart,chartUI,pDist){
 	//console.log("before",pDist)
@@ -216,7 +218,7 @@ function processClick(suspect,category,chart,chartUI,pDist){
 			//eyewitnesses: highly variable accuracy
 			break
 	}
-	//if (Math.random()<0.3) {accuracy=1}
+	//if (Math.random()<0.5) {accuracy=1}
 	//accuracy=1
 	//console.log(cost)
 	var result=chart.query(suspect,category,accuracy)
@@ -405,6 +407,7 @@ function makePBars(pDist,width,x,y){ //array of array of divs
 		div.style.borderWidth="1px"
 		postBody.appendChild(div)
 		pBars.push([div])
+		console.log("bottomCoord",div.style.bottomCoord)
 	}
 	pBars.update=function(newDist){
 		for (var i=0;i<pBars.length;i++){
@@ -416,6 +419,9 @@ function makePBars(pDist,width,x,y){ //array of array of divs
 				var toDelete=pBars[i].pop()
 				$(toDelete).remove()
 			}
+			///////
+			console.log("to be top:",pBars[i][0].style.bottomCoord-Math.round(newDist[i]*100),pBars[i][0].style.bottomCoord,Math.round(newDist[i]*100))
+			////////
 			$(pBars[i][0]).animate({
 				top:pBars[i][0].style.bottomCoord-Math.round(newDist[i]*100),
 				height:Math.round(newDist[i]*100)
@@ -440,7 +446,7 @@ function makePBars(pDist,width,x,y){ //array of array of divs
 	return pBars
 }
 
-var pBars=makePBars(pDist,parseInt(chartUI[0][0].style.width),240,140)
+var pBars=makePBars(pDist,parseInt(chartUI[0][0].style.width),275,140)
 
 function reportPDist(pDist,width,x,y){
 	pDistReport=[]
@@ -477,7 +483,7 @@ function reportPDist(pDist,width,x,y){
 	return pDistReport
 }
 
-var pDistReport=reportPDist(pDist,parseInt(chartUI[0][0].style.width),230,145)
+var pDistReport=reportPDist(pDist,parseInt(chartUI[0][0].style.width),270,145)
 
 
 function makePortraits(n,width,x,y){
@@ -518,13 +524,75 @@ function makePriorsBoxes(pDist,width,x,y) {
 	return boxes
 }
 
-var portraits=makePortraits(4,chartUI[0][0].style.width,225,185)
-var priorBoxes=makePriorsBoxes(pDist,parseInt(chartUI[0][0].style.width),200,525)
+function makeDetectiveBubble(text,buttonArray,width,height,x,y){
+	var div=document.createElement("DIV")
+	div.style.width=width
+	div.style.height=height-20
+	div.style.position="absolute"
+	div.style.top=y
+	div.style.left=x
+	div.style.backgroundColor="white"
+	div.style.borderRadius=3
+	div.style.padding=3
+	div.innerHTML=text
+
+	var buttonDiv=document.createElement("DIV")
+	buttonDiv.style.width=width
+	buttonDiv.style.height=20
+	buttonDiv.style.position="absolute"
+	buttonDiv.style.top=y+height-20
+	buttonDiv.style.left=x
+	buttonDiv.style.backgroundColor="white"
+	buttonDiv.style.borderRadius=3
+	buttonDiv.style.padding=3
+	//buttonDiv.style.border="solid 2px"
+	
+	for (var i=0;i<buttonArray.length;i++){
+		var button=document.createElement("BUTTON")
+		//button.style.verticalAlign=-100+"px"
+		button.innerHTML=buttonArray[i]
+		button.onclick=function(){
+			processButton(this.innerHTML)
+		}
+		buttonDiv.appendChild(button)
+	}
+
+	postBody.appendChild(div)
+	postBody.appendChild(buttonDiv)
+
+	var bubble={text:div,buttons:buttonDiv}
+	bubble.update=function(text,buttonArray){
+		bubble.text.innerHTML=text
+		bubble.buttons.innerHTML=""
+		for (var i=0;i<buttonArray.length;i++){
+			var button=document.createElement("BUTTON")
+			//button.style.verticalAlign=-100+"px"
+			button.innerHTML=buttonArray[i]
+			button.onclick=function(){
+				processButton(this.innerHTML)
+			}
+			buttonDiv.appendChild(button)
+		}
+	}
+	return bubble
+}
+
+function processButton(buttonName){
+	if (buttonName==="test"){
+		speechBubble.update("well, apparently this works",["yeah","nowWhat"])
+	}
+	console.log(buttonName)
+}
+
+var speechBubble=makeDetectiveBubble("Hello everyone. I'm Sherlock Bayes.</br></br>",["Next","test","reset"],220,225,13,13)
+
+var portraits=makePortraits(4,chartUI[0][0].style.width,260,185)
+var priorBoxes=makePriorsBoxes(pDist,parseInt(chartUI[0][0].style.width),240,525)
 var sherlockBayesPortrait=document.createElement("IMG")
 sherlockBayesPortrait.src="sherlockBayes180.png"
 sherlockBayesPortrait.style.position="absolute"
-sherlockBayesPortrait.style.top=200
-sherlockBayesPortrait.style.left=15
+sherlockBayesPortrait.style.top=240
+sherlockBayesPortrait.style.left=30
 postBody.appendChild(sherlockBayesPortrait)
 
 
