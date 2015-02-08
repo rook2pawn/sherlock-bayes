@@ -1,0 +1,23 @@
+{
+  "name": "sherlock-bayes",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "front": "./node_modules/browserify/bin/cmd.js ./lib/main.js -o ./web/js/bundle.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rook2pawn/sherlock-bayes.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rook2pawn/sherlock-bayes/issues"
+  },
+  "homepage": "https://github.com/rook2pawn/sherlock-bayes",
+  "dependencies": {
+    "browserify": "^8.1.3"
+  }
+}
